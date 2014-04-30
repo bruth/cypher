@@ -1,0 +1,6 @@
+*.py?
+*.sw?
+dist
+MANIFEST
+*.egg-info
+.coverage
