@@ -414,6 +414,18 @@ class OptionalMatch(Match):
 class Create(Statement, ValueList):
     keyword = 'CREATE'
 
+    def __init__(self, values, unique=False):
+        self.unique = unique
+        super(Return, self).__init__(values)
+
+    def tokenize(self):
+        toks = super(Return, self).tokenize()
+
+        if self.unique:
+            toks.insert(1, ' UNIQUE ')
+
+        return toks
+
 
 class Delete(Statement, ValueList):
     keyword = 'DELETE'
