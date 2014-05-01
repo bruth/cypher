@@ -7,78 +7,125 @@ try:
 except NameError:
     pass
 
-
-# Supported property value types:
-# http://docs.neo4j.org/chunked/2.0.0/graphdb-neo4j-properties.html
-VALID_TYPES = (bool, int, float, str, bytes)
+from . import constants
 
 
-FUNCTIONS = {
-    'coalesce',
-    'timestamp',
-    'id',
-    'str',
-    'replace',
-    'substring',
-    'left',
-    'trim',
-    'upper',
-    'abs',
-    'rand',
-    'round',
-    'sqrt',
-    'sign',
-    'sin',
-    'degress',
-    'log10',
-}
+def delimit(values, delimiter=', '):
+    "Returns a list of tokens interleaved with the delimiter."
+    toks = []
 
+    if not values:
+        return toks
 
-def cystr(value):
-    "Creates a string representation of the passed value suitable for Cypher."
-    if value is None:
-        return 'NULL'
+    if not isinstance(delimiter, (list, tuple)):
+        delimiter = [delimiter]
 
-    if isinstance(value, bytes):
-        return repr(value.decode()).lstrip('u')
+    last = len(values) - 1
 
-    if isinstance(value, str):
-        return repr(value).lstrip('u')
+    for i, value in enumerate(values):
+        toks.append(value)
 
-    if isinstance(value, bool):
-        return 'true' if True else 'false'
+        if i < last:
+            toks.extend(delimiter)
 
-    return value
+    return toks
 
 
 class Token(object):
-    def __init__(self, token):
-        self.token = token
-
     def tokenize(self):
-        return [self.token]
+        return []
 
     def __str__(self):
         return ''.join([str(t) for t in self.tokenize()])
 
+    def __eq__(self, other):
+        if not isinstance(other, (Token, str)):
+            return False
+        return str(self) == str(other)
+
     def __repr__(self):
-        return '<{}: "{}">'.format(self.__class__.__name__, str(self))
+        return str(self)
 
 
 class Value(Token):
-    pass
+    def __init__(self, value, raw=False):
+        self.value = value
+        self.raw = raw
+
+    def tokenize(self):
+        value = self.value
+
+        if self.raw:
+            return [value]
+
+        if value is True:
+            value = constants.TRUE
+        elif value is False:
+            value = constants.FALSE
+        elif value is None:
+            value = constants.NULL
+        elif isinstance(value, dict):
+            value = Map(value)
+        elif isinstance(value, (list, tuple)):
+            value = Collection(value)
+        elif isinstance(value, bytes):
+            value = repr(value.decode()).lstrip('u')
+        elif isinstance(value, str):
+            value = repr(value).lstrip('u')
+
+        return [value]
 
 
 class Identifier(Token):
-    ident_re = re.compile(r'^[_a-z][_a-z0-0]*$', re.I)
+    "Represents an identifier or property identifier with an optional alias."
+    valid_ident = re.compile(r'^[_a-z][_a-z0-0]*$', re.I)
+
+    def __init__(self, value, identifier=None, alias=None):
+        self.value = value
+        self.identifier = identifier
+        self.alias = alias
 
     def tokenize(self):
-        if self.ident_re.match(self.token):
-            return [self.token]
-        return ['`{}`'.format(self.token)]
+        toks = []
+
+        if self.identifier:
+            toks.extend([Identifier(self.identifier), '.'])
+
+        # valid characters, no need to wrap in backticks
+        if self.valid_ident.match(self.value):
+            toks.append(self.value)
+        else:
+            toks.append('`{}`'.format(self.value))
+
+        if self.alias:
+            toks.extend([' AS ', Identifier(self.alias)])
+
+        return toks
 
 
-class Map(Value):
+class Function(Token):
+    def __init__(self, function, arguments=None):
+        self.function = function
+        self.arguments = arguments
+
+    def tokenize(self):
+        toks = [self.function, '(']
+        toks.extend(delimit(self.arguments, ', '))
+        toks.append(')')
+        return toks
+
+
+class MapPair(Token):
+    "Represents a key/value pair in a map."
+    def __init__(self, key, value):
+        self.key = key
+        self.value = value
+
+    def tokenize(self):
+        return [Identifier(self.key), ': ', Value(self.value)]
+
+
+class Map(Token):
     def __init__(self, props, identifier=None):
         self.props = props
         self.identifier = identifier
@@ -90,30 +137,32 @@ class Map(Value):
             toks.extend([Identifier(self.identifier), ' = '])
 
         toks.append('{')
-        last = len(self.props) - 1
 
-        for i, key in enumerate(self.props):
-            value = self.props[key]
-
-            # Nested map
-            if isinstance(value, dict):
-                value = Map(value)
-            elif isinstance(value, (list, tuple)):
-                value = Collection(value)
-            else:
-                value = cystr(value)
-
-            toks.extend([Identifier(key), ': ', value])
-
-            if i < last:
-                toks.append(', ')
+        toks.extend(delimit([
+            MapPair(k, v) for k, v in self.props.items()
+        ]))
 
         toks.append('}')
 
         return toks
 
 
-class Collection(Value):
+class ValueList(Token):
+    def __init__(self, values, delimiter=', '):
+        if not isinstance(values, (list, tuple)):
+            values = [values]
+
+        self.values = values
+        self.delimiter = delimiter
+
+    def tokenize(self):
+        return delimit([
+            value if isinstance(value, Token) else Value(value)
+            for value in self.values
+        ])
+
+
+class Collection(Token):
     def __init__(self, values, identifier=None):
         self.values = values
         self.identifier = identifier
@@ -124,29 +173,12 @@ class Collection(Value):
         if self.identifier:
             toks.extend([Identifier(self.identifier), ' = '])
 
-        toks.append('[')
-        last = len(self.props) - 1
-
-        for i, value in enumerate(self.values):
-            # Nested map
-            if isinstance(value, dict):
-                value = Map(value)
-            elif isinstance(value, (list, tuple)):
-                value = Collection(value)
-            else:
-                value = cystr(value)
-
-            toks.append(value)
-
-            if i < last:
-                toks.append(', ')
-
-        toks.append(']')
+        toks.extend(['[', ValueList(self.values), ']'])
 
         return toks
 
 
-class Node(Value):
+class Node(Token):
     def __init__(self, props=None, identifier=None, labels=None):
         self.props = props
         self.identifier = identifier
@@ -168,6 +200,7 @@ class Node(Value):
         if self.props:
             if space:
                 toks.append(' ')
+
             toks.append(Map(self.props))
 
         toks.append(')')
@@ -175,7 +208,7 @@ class Node(Value):
         return toks
 
 
-class Rel(Value):
+class Rel(Token):
     def __init__(self, start, end, type=None, identifier=None,
                  props=None, reverse=False):
         self.start = start
@@ -188,7 +221,24 @@ class Rel(Value):
     def tokenize(self):
         toks = []
 
-        toks.append(self.start)
+        start = self.start
+        end = self.end
+
+        if not isinstance(start, Token):
+            start = Node(identifier=start)
+        # Ensure this is an identifier or node
+        elif not isinstance(self.start, (Identifier, Node)):
+            raise ValueError('relationship start node must be an '
+                             'identifier or node')
+
+        if not isinstance(end, Token):
+            end = Node(identifier=end)
+        # Ensure this is an identifier or node
+        elif not isinstance(self.end, (Identifier, Node)):
+            raise ValueError('relationship end node must be an '
+                             'identifier or node')
+
+        toks.append(start)
 
         if self.reverse is True:
             toks.append('<-')
@@ -227,12 +277,12 @@ class Rel(Value):
         else:
             toks.append('-')
 
-        toks.append(self.end)
+        toks.append(end)
 
         return toks
 
 
-class Path(Value):
+class Path(Token):
     """
     node, rel, node, rel, node...
     ()-->()<-[]-()
@@ -248,8 +298,7 @@ class Path(Value):
         toks = []
 
         if self.identifier:
-            toks.append(Identifier(self.identifier))
-            toks.append('=')
+            toks.extend([Identifier(self.identifier), ' = '])
 
         end = None
 
@@ -259,7 +308,7 @@ class Path(Value):
             if end is not None:
                 start = rtoks.pop(0)
 
-                if start is not end:
+                if start != end:
                     raise ValueError('start is not the end')
 
             toks.extend(rtoks)
@@ -268,119 +317,93 @@ class Path(Value):
         return toks
 
 
-class Expr(Value):
-    expr_separator = ', '
-
-    def __init__(self, exprs):
-        if not isinstance(exprs, (list, tuple)):
-            exprs = [exprs]
-
-        self.exprs = exprs
-
-    def tokenize(self):
-        toks = []
-
-        if not self.exprs:
-            return toks
-
-        last = len(self.exprs) - 1
-
-        for i, e in enumerate(self.exprs):
-            toks.append(e)
-
-            if i < last:
-                toks.append(self.expr_separator)
-
-        return toks
-
-
-class Property(Value):
-    def __init__(self, key, value=None, identifier=None):
+class Property(Token):
+    def __init__(self, key, value, identifier=None):
         self.key = key
         self.value = value
         self.identifier = identifier
 
     def tokenize(self):
-        toks = []
-
-        if self.identifier:
-            toks.extend([Identifier(self.identifier), '.'])
-
-        toks.append(Identifier(self.key))
-
-        if self.value is not None:
-            toks.extend([' = ', cystr(self.value)])
-
-        return toks
+        return [Identifier(self.key, identifier=self.identifier), ' = ',
+                Value(self.value)]
 
 
-class Properties(Expr):
+class PropertyList(Token):
     def __init__(self, props, identifier=None):
         self.props = props
         self.identifier = identifier
 
     def tokenize(self):
-        toks = []
-        last = len(self.props) - 1
+        return delimit([
+            Property(k, v, self.identifier) for k, v in self.props.items()
+        ])
 
-        for i, key in enumerate(self.props):
-            value = self.props[key]
-            toks.append(Property(key, value, self.identifier))
 
-            if i < last:
-                toks.append(', ')
+class Predicate(Token):
+    def __init__(self, subject, operator=None, value=None, alias=None):
+        self.subject = subject
+        self.operator = operator
+        self.value = value
+        self.alias = alias
+
+    def tokenize(self):
+        toks = [self.subject]
+
+        if self.operator:
+            toks.extend([' ', self.operator])
+
+        if self.value:
+            toks.extend([' ', self.value])
+
+        if self.alias:
+            toks.extend([' AS ', Identifier(self.alias)])
 
         return toks
 
 
-class Predicate(Expr):
-    def __init__(self, exprs, operator='AND'):
-        super(Predicate, self).__init__(exprs)
+class PredicateList(Token):
+    def __init__(self, preds, operator='AND'):
+        self.preds = preds
         self.operator = operator
 
     def tokenize(self):
         toks = []
 
-        if not self.exprs:
+        if not self.preds:
             return toks
 
-        last = len(self.exprs) - 1
-
-        if last == 0:
-            toks.append(self.exprs[0])
+        if len(self.preds) == 1:
+            toks.append(self.preds[0])
             return toks
 
         toks.append('(')
 
-        for i, pred in enumerate(self.exprs):
-            toks.append(pred)
-
-            if i < last:
-                toks.append(' ')
-                toks.append(self.operator)
-                toks.append(' ')
+        delimiter = ' {} '.format(self.operator)
+        toks.extend(delimit(self.preds, delimiter=delimiter))
 
         toks.append(')')
 
         return toks
 
 
-class Statement(Expr):
+class Statement(Token):
+    keyword = ''
+
     def tokenize(self):
         toks = [self.keyword, ' ']
         toks.extend(super(Statement, self).tokenize())
         return toks
 
 
-class Start(Statement):
+class Start(Statement, ValueList):
     keyword = 'START'
 
 
-class Where(Statement):
+class Where(Statement, ValueList):
     keyword = 'WHERE'
 
 
-class Match(Statement):
+class Match(Statement, ValueList):
     keyword = 'MATCH'
 
 
@@ -388,124 +411,98 @@ class OptionalMatch(Match):
     keyword = 'OPTIONAL MATCH'
 
 
-class Create(Statement):
+class Create(Statement, ValueList):
     keyword = 'CREATE'
 
 
-class Delete(Statement):
+class Delete(Statement, ValueList):
     keyword = 'DELETE'
 
 
 class Skip(Statement):
     keyword = 'SKIP'
 
+    def __init__(self, skip):
+        if not isinstance(skip, int):
+            raise TypeError('SKIP value must be an integer')
+
+        self.skip = skip
+
+    def tokenize(self):
+        return [self.keyword, ' ', self.skip]
+
 
 class Limit(Statement):
     keyword = 'LIMIT'
 
+    def __init__(self, limit):
+        if not isinstance(limit, int):
+            raise TypeError('LIMIT value must be an integer')
 
-class OrderBy(Statement):
+        self.limit = limit
+
+    def tokenize(self):
+        return [self.keyword, ' ', self.limit]
+
+
+class OrderBy(Statement, ValueList):
     keyword = 'ORDER BY'
 
 
-class Return(Statement):
+class Return(Statement, ValueList):
     keyword = 'RETURN'
 
-    def __init__(self, exprs, order_by=None, skip=None, limit=None,
-                 distinct=False):
-        super(Return, self).__init__(exprs)
-
-        self.order_by = order_by
-        self.skip = skip
-        self.limit = limit
+    def __init__(self, exprs, distinct=False):
         self.distinct = distinct
+        super(Return, self).__init__(exprs)
 
     def tokenize(self):
         toks = super(Return, self).tokenize()
 
-        toks.insert(1, ' DISTINCT ')
-
-        if self.order_by:
-            toks.extend([' ', self.order_by])
-
-        if self.skip:
-            toks.extend([' ', 'SKIP', ' ', self.skip])
-
-        if self.limit is not None:
-            toks.extend([' ', 'LIMIT', ' ', self.limit])
+        if self.distinct:
+            toks.insert(1, ' DISTINCT ')
 
         return toks
 
 
-class With(Statement):
+class With(Statement, ValueList):
     keyword = 'WITH'
-
-    def __init__(self, exprs, order_by=None, skip=None, limit=None):
-        super(With, self).__init__(exprs)
-
-        self.order_by = order_by
-        self.skip = skip
-        self.limit = limit
-
-    def tokenize(self):
-        toks = super(With, self).tokenize()
-
-        if self.order_by:
-            toks.extend([' ', self.order_by])
-
-        if self.skip:
-            toks.extend([' ', 'SKIP', ' ', self.skip])
-
-        if self.limit is not None:
-            toks.extend([' ', 'LIMIT', ' ', self.limit])
-
-        return toks
 
 
 class Merge(Statement):
     keyword = 'MERGE'
 
-    def __init__(self, expr, oncreate=None, onmatch=None):
-        if oncreate and not isinstance(oncreate, (list, tuple)):
-            oncreate = [oncreate]
-
-        if onmatch and not isinstance(onmatch, (list, tuple)):
-            onmatch = [onmatch]
-
+    def __init__(self, expr):
         self.expr = expr
-        self.oncreate = oncreate
-        self.onmatch = onmatch
 
     def tokenize(self):
-        toks = [self.keyword, ' ', self.expr]
-
-        if self.oncreate:
-            toks.append(' ')
-            toks.append('ON CREATE SET')
-            toks.append(' ')
-
-            last = len(self.oncreate) - 1
-
-            for i, e in enumerate(self.oncreate):
-                toks.append(e)
-
-                if i < last:
-                    toks.append(', ')
-
-        if self.onmatch:
-            toks.append(' ')
-            toks.append('ON MATCH SET')
-            toks.append(' ')
-            last = len(self.onmatch) - 1
-
-            for i, e in enumerate(self.onmatch):
-                toks.append(e)
-
-                if i < last:
-                    toks.append(', ')
-
-        return toks
+        return [self.keyword, ' ', self.expr]
 
 
-class Query(Expr):
-    expr_separator = ' '
+class OnCreate(Statement, ValueList):
+    keyword = 'ON CREATE'
+
+
+class OnMatch(Statement, ValueList):
+    keyword = 'ON MATCH'
+
+
+class Set(Statement, ValueList):
+    keyword = 'SET'
+
+
+class Union(Statement):
+    keyword = 'UNION'
+
+
+class UnionAll(Statement):
+    keyword = 'UNION ALL'
+
+
+class Query(Token):
+    def __init__(self, tokens, delimiter='\n'):
+        self.tokens = tokens
+        self.delimiter = delimiter
+
+    def tokenize(self):
+        return delimit(self.tokens, delimiter=self.delimiter)
