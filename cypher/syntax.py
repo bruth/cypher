@@ -133,6 +133,9 @@ class MapPair(Token):
 
 class Map(Token):
     def __init__(self, props, identifier=None):
+        if hasattr(props, 'props'):
+            props = props.props
+
         self.props = props
         self.identifier = identifier
 
@@ -336,6 +339,9 @@ class Property(Token):
 
 class PropertyList(Token):
     def __init__(self, props, identifier=None):
+        if hasattr(props, 'props'):
+            props = props.props
+
         self.props = props
         self.identifier = identifier
 
