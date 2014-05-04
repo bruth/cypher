@@ -111,6 +111,11 @@ class Identifier(Token):
 
 class Function(Token):
     def __init__(self, function, arguments=None):
+        if not arguments:
+            arguments = []
+        elif not isinstance(arguments, (list, tuple)):
+            arguments = [arguments]
+
         self.function = function
         self.arguments = arguments
 
