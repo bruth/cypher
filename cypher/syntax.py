@@ -191,14 +191,15 @@ class Node(Token):
 
 
 class Rel(Token):
-    def __init__(self, start, type, end, identifier=None,
-                 props=None, reverse=False):
+    def __init__(self, start=None, type=None, end=None, identifier=None,
+                 props=None, reverse=False, directed=True):
         self.start = start
         self.type = type
         self.end = end
         self.identifier = identifier
         self.props = props
         self.reverse = reverse
+        self.directed = directed
 
     def tokenize(self):
         toks = []
@@ -222,7 +223,7 @@ class Rel(Token):
 
         toks.append(start)
 
-        if self.reverse is True:
+        if self.directed and self.reverse is True:
             toks.append('<-')
         else:
             toks.append('-')
@@ -254,7 +255,7 @@ class Rel(Token):
 
             toks.append(']')
 
-        if self.reverse is False:
+        if self.directed and self.reverse is False:
             toks.append('->')
         else:
             toks.append('-')
