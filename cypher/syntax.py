@@ -370,7 +370,12 @@ class Predicate(Token):
         self.alias = alias
 
     def tokenize(self):
-        toks = [self.subject]
+        if hasattr(self.subject, 'identifier'):
+            subject = Identifier(self.subject.identifier)
+        else:
+            subject = Value(self.subject)
+
+        toks = [subject]
 
         if self.operator:
             toks.extend([' ', self.operator])
