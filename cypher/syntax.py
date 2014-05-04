@@ -435,27 +435,21 @@ class Delete(Statement, ValueList):
 class Skip(Statement):
     keyword = 'SKIP'
 
-    def __init__(self, skip):
-        if not isinstance(skip, int):
+    def __init__(self, value):
+        if not isinstance(value, int):
             raise TypeError('SKIP value must be an integer')
 
-        self.skip = skip
-
-    def tokenize(self):
-        return [self.keyword, ' ', self.skip]
+        self.value = value
 
 
 class Limit(Statement):
     keyword = 'LIMIT'
 
-    def __init__(self, limit):
-        if not isinstance(limit, int):
+    def __init__(self, value):
+        if not isinstance(value, int):
             raise TypeError('LIMIT value must be an integer')
 
-        self.limit = limit
-
-    def tokenize(self):
-        return [self.keyword, ' ', self.limit]
+        self.value = value
 
 
 class OrderBy(Statement, ValueList):
