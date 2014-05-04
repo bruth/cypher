@@ -450,6 +450,11 @@ class Create(Statement, ValueList):
         return toks
 
 
+class CreateUnique(Create):
+    def __init__(self, values):
+        super(CreateUnique, self).__init__(values, unique=True)
+
+
 class Delete(Statement, ValueList):
     keyword = 'DELETE'
 
@@ -498,6 +503,11 @@ class Return(Statement, ValueList):
             toks.insert(1, ' DISTINCT ')
 
         return toks
+
+
+class ReturnDistinct(Return):
+    def __init__(self, values):
+        super(ReturnDistinct, self).__init__(values, distinct=True)
 
 
 class With(Statement, ValueList):
