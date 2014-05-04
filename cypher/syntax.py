@@ -67,7 +67,7 @@ class Identifier(Token):
 
 
 class Function(Token):
-    def __init__(self, function, arguments=None):
+    def __init__(self, function, arguments=None, alias=None):
         if not arguments:
             arguments = []
         elif not isinstance(arguments, (list, tuple)):
@@ -75,11 +75,16 @@ class Function(Token):
 
         self.function = function
         self.arguments = arguments
+        self.alias = alias
 
     def tokenize(self):
         toks = [self.function, '(']
         toks.extend(utils.delimit(self.arguments, ', '))
         toks.append(')')
+
+        if self.alias:
+            toks.extend([' ', constants.AS, ' ', Identifier(self.alias)])
+
         return toks
 
 
