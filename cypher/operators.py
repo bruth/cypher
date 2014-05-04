@@ -1,35 +1,37 @@
-from __future__ import unicode_literals
+from __future__ import unicode_literals, absolute_import
+
+from .token import Token
 
 # Math
-ADD = '+'
-SUB = '-'
-MUL = '*'
-DIV = '/'
-MOD = '%'
-POW = '^'
+ADD = Token('+')
+SUB = Token('-')
+MUL = Token('*')
+DIV = Token('/')
+MOD = Token('%')
+POW = Token('^')
 
 # Comparison
-EQ = '='
-NEQ = '<>'
-LT = '<'
-GT = '>'
-LTE = '<='
-GTE = '>='
+EQ = Token('=')
+NEQ = Token('<>')
+LT = Token('<')
+GT = Token('>')
+LTE = Token('<=')
+GTE = Token('>=')
 
 # Boolean
-AND = 'AND'
-OR = 'OR'
-XOR = 'XOR'
-NOT = 'NOT'
+AND = Token('AND')
+OR = Token('OR')
+XOR = Token('XOR')
+NOT = Token('NOT')
 
 # Regex
-REGEXP = '=~'
+REGEXP = Token('=~')
 
 # String/collection
-CONCAT = '+'
+CONCAT = Token('+')
 
 # Collection
-IN = 'IN'
+IN = Token('IN')
 
 # Operator sets
 math = {ADD, SUB, MUL, DIV, MOD, POW}

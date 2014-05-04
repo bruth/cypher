@@ -4,4 +4,5 @@ __version__ = '0.1'
 
 from .syntax import *  # noqa
 from .constants import *  # noqa
-from . import utils, operators, functions  # noqa
+from .operators import *  # noqa
+from .functions import *  # noqa

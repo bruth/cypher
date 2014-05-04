@@ -7,59 +7,16 @@ try:
 except NameError:
     pass
 
-from . import constants
-
-
-def delimit(values, delimiter=', '):
-    "Returns a list of tokens interleaved with the delimiter."
-    toks = []
-
-    if not values:
-        return toks
-
-    if not isinstance(delimiter, (list, tuple)):
-        delimiter = [delimiter]
-
-    last = len(values) - 1
-
-    for i, value in enumerate(values):
-        toks.append(value)
-
-        if i < last:
-            toks.extend(delimiter)
-
-    return toks
-
-
-class Token(object):
-    def tokenize(self):
-        return []
-
-    def __str__(self):
-        return ''.join([str(t) for t in self.tokenize()])
-
-    def __eq__(self, other):
-        if not isinstance(other, (Token, str)):
-            return False
-        return str(self) == str(other)
-
-    def __ne__(self, other):
-        return not (self == other)
-
-    def __repr__(self):
-        return str(self)
+from . import constants, utils
+from .token import Token
 
 
 class Value(Token):
-    def __init__(self, value, raw=False):
+    def __init__(self, value):
         self.value = value
-        self.raw = raw
 
     def tokenize(self):
         value = self.value
-
-        if self.raw:
-            return [value]
 
         if value is True:
             value = constants.TRUE
@@ -121,7 +78,7 @@ class Function(Token):
 
     def tokenize(self):
         toks = [self.function, '(']
-        toks.extend(delimit(self.arguments, ', '))
+        toks.extend(utils.delimit(self.arguments, ', '))
         toks.append(')')
         return toks
 
@@ -155,7 +112,7 @@ class Map(Token):
 
         toks.append('{')
 
-        toks.extend(delimit([
+        toks.extend(utils.delimit([
             MapPair(k, v) for k, v in self.props.items()
         ]))
 
@@ -184,7 +141,7 @@ class ValueList(Token):
         if self.delimiter is None:
             return toks
 
-        return delimit(toks, delimiter=self.delimiter)
+        return utils.delimit(toks, delimiter=self.delimiter)
 
 
 class Collection(Token):
@@ -365,7 +322,7 @@ class PropertyList(Token):
         self.identifier = identifier
 
     def tokenize(self):
-        return delimit([
+        return utils.delimit([
             Property(k, v, self.identifier) for k, v in self.props.items()
         ])
 
@@ -415,7 +372,7 @@ class PredicateList(Token):
         toks.append('(')
 
         delimiter = ' {} '.format(self.operator)
-        toks.extend(delimit(self.preds, delimiter=delimiter))
+        toks.extend(utils.delimit(self.preds, delimiter=delimiter))
 
         toks.append(')')
 
@@ -527,7 +484,7 @@ class Return(Statement, ValueList):
             values.append(value)
 
         if self.delimiter is None:
-            values = delimit(values, delimiter=self.delimiter)
+            values = utils.delimit(values, delimiter=self.delimiter)
 
         toks.extend(values)
 
@@ -556,7 +513,7 @@ class With(Statement, ValueList):
             values.append(value)
 
         if self.delimiter is None:
-            values = delimit(values, delimiter=self.delimiter)
+            values = utils.delimit(values, delimiter=self.delimiter)
 
         toks.extend(values)
 
@@ -599,4 +556,4 @@ class Query(Token):
         self.delimiter = delimiter
 
     def tokenize(self):
-        return delimit(self.tokens, delimiter=self.delimiter)
+        return utils.delimit(self.tokens, delimiter=self.delimiter)

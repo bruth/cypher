@@ -1,43 +1,22 @@
 from __future__ import unicode_literals, absolute_import
-from .syntax import *  # noqa
 
 
-def exists(value):
-    "Query to test if a value exists."
-    if not isinstance(value, Token):
-        raise TypeError('value must be a token')
+def delimit(values, delimiter=', '):
+    "Returns a list of tokens interleaved with the delimiter."
+    toks = []
 
-    if not hasattr(value, 'identifier'):
-        raise TypeError('value must support an identifier')
+    if not values:
+        return toks
 
-    if not value.identifier:
-        value = value.__class__(**value.__dict__)
-        value.identifier = 'v'
+    if not isinstance(delimiter, (list, tuple)):
+        delimiter = [delimiter]
 
-    ident = Identifier(value.identifier)
+    last = len(values) - 1
 
-    return Query([
-        OptionalMatch(value),
-        Return(Predicate(ident, 'IS NOT NULL')),
-        Limit(1),
-    ])
+    for i, value in enumerate(values):
+        toks.append(value)
 
+        if i < last:
+            toks.extend(delimiter)
 
-def get(value):
-    "Query to get the value."
-    if not isinstance(value, Token):
-        raise TypeError('value must be a token')
-
-    if not hasattr(value, 'identifier'):
-        raise TypeError('value must support an identifier')
-
-    if not value.identifier:
-        value = value.__class__(**value.__dict__)
-        value.identifier = 'v'
-
-    ident = Identifier(value.identifier)
-
-    return Query([
-        Match(value),
-        Return(ident)
-    ])
+    return toks
