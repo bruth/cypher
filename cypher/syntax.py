@@ -226,11 +226,11 @@ class Node(Token):
 
 
 class Rel(Token):
-    def __init__(self, start, end, type=None, identifier=None,
+    def __init__(self, start, type, end, identifier=None,
                  props=None, reverse=False):
         self.start = start
-        self.end = end
         self.type = type
+        self.end = end
         self.identifier = identifier
         self.props = props
         self.reverse = reverse
