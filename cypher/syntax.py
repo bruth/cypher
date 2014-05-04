@@ -439,10 +439,10 @@ class Create(Statement, ValueList):
 
     def __init__(self, values, unique=False):
         self.unique = unique
-        super(Return, self).__init__(values)
+        super(Create, self).__init__(values)
 
     def tokenize(self):
-        toks = super(Return, self).tokenize()
+        toks = super(Create, self).tokenize()
 
         if self.unique:
             toks.insert(1, ' UNIQUE ')
