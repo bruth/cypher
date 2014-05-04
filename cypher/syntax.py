@@ -505,15 +505,31 @@ class OrderBy(Statement, ValueList):
 class Return(Statement, ValueList):
     keyword = 'RETURN'
 
-    def __init__(self, exprs, distinct=False):
+    def __init__(self, values, distinct=False):
         self.distinct = distinct
-        super(Return, self).__init__(exprs)
+        super(Return, self).__init__(values)
 
     def tokenize(self):
-        toks = super(Return, self).tokenize()
+        toks = [self.keyword]
 
         if self.distinct:
-            toks.insert(1, ' DISTINCT ')
+            toks.append(' DISTINCT ')
+
+        values = []
+
+        for value in self.values:
+            # Use the identifier of nodes, rels, and paths if defined
+            if isinstance(value, (Node, Rel, Path)) and value.identifier:
+                value = Identifier(value.identifier)
+            elif not isinstance(value, Token):
+                value = Value(value)
+
+            values.append(value)
+
+        if self.delimiter is None:
+            values = delimit(values, delimiter=self.delimiter)
+
+        toks.extend(values)
 
         return toks
 
@@ -525,6 +541,26 @@ class ReturnDistinct(Return):
 
 class With(Statement, ValueList):
     keyword = 'WITH'
+
+    def tokenize(self):
+        toks = [self.keyword]
+        values = []
+
+        for value in self.values:
+            # Use the identifier of nodes, rels, and paths if defined
+            if isinstance(value, (Node, Rel, Path)) and value.identifier:
+                value = Identifier(value.identifier)
+            elif not isinstance(value, Token):
+                value = Value(value)
+
+            values.append(value)
+
+        if self.delimiter is None:
+            values = delimit(values, delimiter=self.delimiter)
+
+        toks.extend(values)
+
+        return toks
 
 
 class Merge(Statement):
