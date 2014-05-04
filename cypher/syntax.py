@@ -173,10 +173,18 @@ class ValueList(Token):
         self.delimiter = delimiter
 
     def tokenize(self):
-        return delimit([
-            value if isinstance(value, Token) else Value(value)
-            for value in self.values
-        ])
+        toks = []
+
+        for value in self.values:
+            if not isinstance(value, Token):
+                value = Value(value)
+
+            toks.append(value)
+
+        if self.delimiter is None:
+            return toks
+
+        return delimit(toks, delimiter=self.delimiter)
 
 
 class Collection(Token):
