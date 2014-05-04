@@ -1,6 +1,13 @@
 from __future__ import unicode_literals, absolute_import
 
 from .token import Token
+from .syntax import Identifier, Value
+from .utils import delimit
+
+try:
+    str = unicode
+except NameError:
+    pass
 
 
 COALESCE = Token('coalesce')
@@ -44,3 +51,47 @@ functions = {
     NODE,
     REL,
 }
+
+
+class _StartLookup(Token):
+    function = ''
+
+    def __init__(self, key, value=None, index=None, identifier=None):
+        if index:
+            if not isinstance(key, (str, bytes)):
+                raise TypeError('key must be a string for index lookup')
+            if value is None:
+                raise TypeError('value cannot be None for index lookup')
+        elif not isinstance(key, (list, tuple)):
+            key = [key]
+
+        self.key = key
+        self.value = value
+        self.index = index
+        self.identifier = identifier
+
+    def tokenize(self):
+        toks = []
+
+        if self.identifier:
+            toks.extend([self.identifier, '='])
+
+        toks.append(self.function)
+
+        if self.index:
+            toks.extend([':', self.index, '(',
+                         Identifier(self.key), '=', Value(self.value), ')'])
+        else:
+            toks.append('(')
+            toks.extend(delimit(self.key, ','))
+            toks.append(')')
+
+        return toks
+
+
+class StartNode(_StartLookup):
+    function = NODE
+
+
+class StartRel(_StartLookup):
+    function = REL
