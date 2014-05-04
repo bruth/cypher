@@ -412,10 +412,12 @@ class Create(Statement, ValueList):
         super(Create, self).__init__(values)
 
     def tokenize(self):
-        toks = super(Create, self).tokenize()
+        toks = [self.keyword, ' ']
 
         if self.unique:
-            toks.insert(1, ' UNIQUE ')
+            toks.extend([' ', 'UNIQUE', ' '])
+
+        toks.extend(ValueList.tokenize(self))
 
         return toks
 
@@ -467,10 +469,10 @@ class Return(Statement, ValueList):
         super(Return, self).__init__(values)
 
     def tokenize(self):
-        toks = [self.keyword]
+        toks = [self.keyword, ' ']
 
         if self.distinct:
-            toks.append(' DISTINCT ')
+            toks.extend(['DISTINCT', ' '])
 
         values = []
 
@@ -483,10 +485,7 @@ class Return(Statement, ValueList):
 
             values.append(value)
 
-        if self.delimiter is None:
-            values = utils.delimit(values, delimiter=self.delimiter)
-
-        toks.extend(values)
+        toks.extend(utils.delimit(values, delimiter=self.delimiter))
 
         return toks
 
@@ -512,10 +511,7 @@ class With(Statement, ValueList):
 
             values.append(value)
 
-        if self.delimiter is None:
-            values = utils.delimit(values, delimiter=self.delimiter)
-
-        toks.extend(values)
+        toks.extend(utils.delimit(values, delimiter=self.delimiter))
 
         return toks
 
