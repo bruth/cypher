@@ -246,11 +246,13 @@ class Rel(Token):
                 space = True
 
                 if isinstance(self.type, (list, tuple)):
-                    toks.append(':' + '|'.join(self.type))
+                    toks.append(':')
+                    types = [Identifier(t) for t in self.type]
+                    toks.extend(utils.delimit(types, delimiter='|'))
                 elif self.type.startswith('*'):
                     toks.append(self.type)
                 else:
-                    toks.append(':' + self.type)
+                    toks.extend([':', Identifier(self.type)])
 
             if self.props:
                 if space:
