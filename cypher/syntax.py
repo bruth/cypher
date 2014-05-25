@@ -41,7 +41,11 @@ class Identifier(Token):
     valid_ident = re.compile(r'^[_a-z][_a-z0-0]*$', re.I)
 
     def __init__(self, value, identifier=None, alias=None):
-        if hasattr(value, 'identifier'):
+        if isinstance(value, Identifier):
+            alias = value.alias
+            identifier = value.identifier
+            value = value.value
+        elif hasattr(value, 'identifier'):
             value = value.identifier
 
         self.value = value
