@@ -1,7 +1,7 @@
 from __future__ import unicode_literals, absolute_import
 
 from .token import Token
-from .syntax import Identifier, Value
+from .syntax import Identifier, Value, Function
 from .utils import delimit
 
 try:
@@ -95,3 +95,8 @@ class StartNode(_StartLookup):
 
 class StartRel(_StartLookup):
     function = REL
+
+
+class Id(Function):
+    def __init__(self, identifier):
+        super(Id, self).__init__(ID, Identifier(identifier))
