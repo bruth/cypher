@@ -1,6 +1,8 @@
 *.py?
 *.sw?
-dist
-MANIFEST
+*.ipynb
 *.egg-info
 .coverage
+dist
+htmlcov
+MANIFEST
