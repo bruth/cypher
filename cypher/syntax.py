@@ -435,6 +435,22 @@ class CreateUnique(Create):
         super(CreateUnique, self).__init__(values, unique=True)
 
 
+class CreateIndex(Statement):
+    keyword = 'CREATE INDEX'
+
+    def __init__(self, label, prop):
+        self.label = label
+        self.prop = prop
+
+    def tokenize(self):
+        return [self.keyword, ' ', ':', Identifier(self.label),
+                '(', Identifier(self.prop), ')']
+
+
+class DropIndex(CreateIndex):
+    keyword = 'DROP INDEX'
+
+
 class Delete(Statement, ValueList):
     keyword = 'DELETE'
 
