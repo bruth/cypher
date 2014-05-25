@@ -451,6 +451,24 @@ class DropIndex(CreateIndex):
     keyword = 'DROP INDEX'
 
 
+class CreateConstraint(Statement):
+    keyword = 'CREATE CONSTRAINT'
+
+    def __init__(self, label, prop):
+        self.label = label
+        self.prop = prop
+
+    def tokenize(self):
+        n = Node(labels=[self.label], identifier='n')
+
+        return [self.keyword, ' ', 'ON', ' ', n, ' ', 'ASSERT', ' ',
+                Predicate(Identifier(self.prop, identifier='n'), 'IS UNIQUE')]
+
+
+class DropConstraint(CreateConstraint):
+    keyword = 'DROP CONSTRAINT'
+
+
 class Delete(Statement, ValueList):
     keyword = 'DELETE'
 
